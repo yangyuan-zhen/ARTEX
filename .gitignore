@@ -36,6 +36,7 @@ Thumbs.db
 
 # 内嵌前端的单二进制产物
 /artex
+/artex.exe
 # 一键更新在可执行文件旁留下的中间产物（暂存件 / 备份 / 失败版本 / 升级标记）
 /artex.new
 /artex.new.sha256
@@ -47,6 +48,11 @@ Thumbs.db
 
 # JWT 签名密钥（运行时生成，存项目根，绝不提交）
 /jwt.key
+
+# 本机运维脚本与日志（含服务器地址，仅本地使用）
+/connect-vps.bat
+/artex-tunnel.ps1
+/artex-tunnel.log
 
 # Docker 部署生成的本地环境（含密码/密钥，不提交）
 .env
