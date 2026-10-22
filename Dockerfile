@@ -38,6 +38,27 @@ COPY dist/${TARGETARCH}/artex /app/artex
 COPY start.sh /app/start.sh
 RUN chmod +x /app/artex /app/start.sh
 COPY skills/ /app/skills/
+# REA（逆向工程 MCP）+ 它要求的 Node 22（系统 Node 20 留给 Playwright 全局包）。
+# 单独一层，避免改动前面 apt/npm 层导致 Playwright 重装。
+RUN apt-get update && apt-get install -y --no-install-recommends procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-x64.tar.gz -o /tmp/node22.tar.gz \
+    && mkdir -p /opt/node22 && tar -xzf /tmp/node22.tar.gz -C /opt/node22 --strip-components=1 \
+    && rm /tmp/node22.tar.gz \
+    && /opt/node22/bin/npm install -g rea-agents@6.4.0 \
+    && printf '#!/bin/sh\nexec /opt/node22/bin/node /usr/lib/node_modules/rea-agents/scripts/rea.mjs mcp\n' > /usr/local/bin/rea-mcp \
+    && chmod +x /usr/local/bin/rea-mcp \
+    && apt-get update && apt-get install -y --no-install-recommends default-jdk-headless \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip -o /tmp/jadx.zip \
+    && mkdir -p /opt/jadx && unzip -q /tmp/jadx.zip -d /opt/jadx \
+    && rm /tmp/jadx.zip \
+    && ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx \
+    && jadx --version \
+    && curl -fsSL https://github.com/1013503897/jadx-headless-mcp/releases/download/v0.7.1/jadx-headless-mcp-0.7.1-all.jar -o /opt/jadx-headless-mcp.jar \
+    && echo "6e5eacf500b64292bfb73c49797c1958f6ee44646e43e868039ae7feb573ff75  /opt/jadx-headless-mcp.jar" | sha256sum -c -
+# REA 的 Android 分析不用 jadx CLI，而是调用这个 caller-supplied 的 headless MCP jar。
+ENV REA_JADX_MCP_JAR=/opt/jadx-headless-mcp.jar
 # data/（SQLite + jwt.key）持久化点
 VOLUME ["/app/data"]
 EXPOSE 8787 8788

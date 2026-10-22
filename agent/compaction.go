@@ -510,13 +510,16 @@ func buildCompressionInput(g *coldGraph, b block, nodeByID map[int64]*db.Node) s
 }
 
 // compress runs the §4 body LLM call on one block. Uses the same model the agent
-// runs on; thinking disabled (a pure summarization step).
+// runs on. Thinking is deliberately NOT overridden: a hardcoded "disabled" is
+// rejected outright by adaptive-thinking-only models (e.g. MiniMax-M3.1), which
+// answers 400 and leaves every compaction failing forever. Leaving the field
+// empty means the profile's own thinking_type decides — unset profiles send no
+// thinking field at all and take the model's default.
 func (c *Compactor) compress(ctx context.Context, g *coldGraph, b block, nodeByID map[int64]*db.Node) (string, error) {
 	req := llm.CompletionRequest{
 		System:    []string{compressionSystemPrompt},
 		Messages:  []llm.Message{llm.UserText(buildCompressionInput(g, b, nodeByID))},
 		MaxTokens: 1500,
-		Thinking:  "disabled",
 	}
 	msg, _, _, err := c.prov.Complete(ctx, req)
 	if err != nil {
