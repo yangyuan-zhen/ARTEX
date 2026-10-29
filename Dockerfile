@@ -59,6 +59,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends procps \
     && echo "6e5eacf500b64292bfb73c49797c1958f6ee44646e43e868039ae7feb573ff75  /opt/jadx-headless-mcp.jar" | sha256sum -c -
 # REA 的 Android 分析不用 jadx CLI，而是调用这个 caller-supplied 的 headless MCP jar。
 ENV REA_JADX_MCP_JAR=/opt/jadx-headless-mcp.jar
+# android-reverse-engineering 技能的可选依赖：Vineflower（反编译质量更高）、
+# dex2jar（DEX→JAR，供 Vineflower 使用）、apktool（解资源）。adb 不装——容器内无设备。
+# 同样是独立层，改动不影响上面的缓存。
+RUN set -eux; \
+    fetch() { curl -fsSL --max-time 90 -o "$2" "$1" || curl -fsSL --max-time 300 -o "$2" "https://ghproxy.net/$1"; }; \
+    fetch https://github.com/Vineflower/vineflower/releases/download/1.12.0/vineflower-1.12.0.jar /opt/vineflower.jar; \
+    printf '#!/bin/sh\nexec java -jar /opt/vineflower.jar "$@"\n' > /usr/local/bin/vineflower; \
+    chmod +x /usr/local/bin/vineflower; \
+    fetch https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip /tmp/dex-tools.zip; \
+    unzip -q /tmp/dex-tools.zip -d /opt && mv /opt/dex-tools-v2.4 /opt/dex-tools && rm /tmp/dex-tools.zip; \
+    chmod +x /opt/dex-tools/*.sh; \
+    ln -sf /opt/dex-tools/d2j-dex2jar.sh /usr/local/bin/d2j-dex2jar; \
+    ln -sf /opt/dex-tools/d2j-dex2jar.sh /usr/local/bin/d2j-dex2jar.sh; \
+    fetch https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar /opt/apktool.jar; \
+    printf '#!/bin/sh\nexec java -jar /opt/apktool.jar "$@"\n' > /usr/local/bin/apktool; \
+    chmod +x /usr/local/bin/apktool; \
+    vineflower --version 2>&1 | head -1 || true
 # data/（SQLite + jwt.key）持久化点
 VOLUME ["/app/data"]
 EXPOSE 8787 8788
